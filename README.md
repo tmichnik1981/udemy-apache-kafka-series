@@ -314,3 +314,44 @@ Log Cleanup: Why and When?
 - log.retention.bytes:
   - Max size in Bytes for each partition (default is -1 - infinite)
   - Useful to keep the size of a log under a threshold
+
+##### Log Cleanup Policy: Compact
+
+- [Getting Started with Apache Kafka for the Baffled part 2](http://www.shayne.me/blog/2015/2015-06-25-everything-about-kafka-part-2/)
+
+
+- Log compaction ensures that your log contains at least the last known value for a pecific key within a partition
+- Very useful if we just require a SNAPSHOT instead of full history
+- The idea is that we only keep the latest "update" for a key in our log
+- Log compaction removes old keys if newer ones are available
+- **Any consumer that is reading form the head of a log will still see all the messages sent to the topic**
+- Ordering of messages it kept, log compaction only removes some messages, but does not  reorder them
+- The offset of a message is immutable. Offsets are just skipped if a message is missing
+- Deleted records can still be seen by consumers for a period of delete.retention.ms (default is 24 h)
+- Log compaction does not prevent ypu form pushing duplicate data to kafka
+  - De-duplication is done after a segment is committed
+  - Your consumers will still read from head as soon as the data arrives
+  - **Only new consumers wont see deleted (compacted) records**
+- It does not prevent you form reading duplicate data form Kafka
+- Log compaction can fail from time to time
+
+##### Log Compression
+
+- [Kafka Perormance testing](https://cwiki.apache.org/confluence/display/KAFKA/Performance+testing)
+- Topics can be compressed using **compression.type**  setting.
+- Options are **gzip**, **snappy**, **lz4**,  **uncompressed**, **producer**
+- If you need compression, ideally you keep default as **producer**
+  - The producer will perform the compression on its side
+  - The broker will take the data as is => Saves CPU resources on the broker
+- If compression is enabled, make sure you're sending batches of data
+- Data will be uncompressed by the consumer!
+- Compression only makes sense if you're sending non-binary data (compress:JSON, test... | don't compress: Parquet, Protobuf, Avro) 
+
+##### Other advanced configurations
+
+- [blog post about min.insync.replicas](https://logallthethings.com/2016/07/11/min-insync-replicas-what-does-it-actually-do/)
+
+
+- **max.messages.bytes** (default is 1 MB): if your messages get bigger than 1MB, increase this parameter on the topic and your consumers buffer
+- **min.isync.replicas** (default is 1): if using acks=all, specify how many brokers need to acknowledge the write
+- **unclean.leader.election** (danger!! - default true): id set to true, it will allow replicas who are in sync to become leader as a last resort if all ISRs are offline. This can lead to data loss. If set to false, the topic will go offline until the ISRs come back up.
